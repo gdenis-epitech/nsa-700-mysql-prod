@@ -1,0 +1,53 @@
+- name: "Load MYSQL variables"
+  ansible.builtin.include_vars: mysql.vars.ansible.yaml
+
+- name: "Install dependencies"
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    force: true
+    state: present
+    name:
+      - software-properties-common
+      - python3-pymysql
+
+- name: "Install MariaDB"
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    force: true
+    state: present
+    name: mariadb-server
+
+- name: "Create MariaDB database"
+  become: true
+  community.mysql.mysql_db:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    name: "{{ mysql_db }}"
+    state: present
+
+- name: "Create MariaDB user"
+  become: true
+  community.mysql.mysql_user:
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    column_case_sensitive: true
+    name: "{{ mysql_user }}"
+    password: "{{ mysql_password }}"
+    priv: "{{ mysql_privileges }}"
+    host: "{{ mysql_remote_host_ip }}"
+    state: present
+
+- name: "Update mariadb server config file"
+  become: true
+  ansible.builtin.copy:
+    src: files/50-server.cnf
+    dest: /etc/mysql/mariadb.conf.d/50-server.cnf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "Restart MariaDB with updated configuration"
+  become: true
+  ansible.builtin.service:
+    name: mysql
+    state: restarted
